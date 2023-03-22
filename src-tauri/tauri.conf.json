@@ -16,6 +16,16 @@
       "shell": {
         "all": false,
         "open": true
+      },
+      "path": {
+        "all": true
+      },
+      "protocol": {
+        "all": false,
+        "asset": true,
+        "assetScope": [
+          "/**/*"
+        ]
       }
     },
     "bundle": {
@@ -52,7 +62,9 @@
       }
     },
     "security": {
-      "csp": null
+      "csp": {
+        "img-src": "https://manga.localhost"
+      }
     },
     "updater": {
       "active": false

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
+import Link from 'next/link';
 import Image from "next/image";
 import reactLogo from "../assets/react.svg";
 import tauriLogo from "../assets/tauri.svg";
@@ -71,6 +72,14 @@ function App() {
           <button type="submit">Greet</button>
         </form>
       </div>
+
+      <li>
+        <Link href="/test">test</Link>
+      </li>
+
+      <li>
+        <Link href="/home">home</Link>
+      </li>
 
       <p>{greetMsg}</p>
     </div>
