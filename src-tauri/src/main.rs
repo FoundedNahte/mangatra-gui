@@ -3,39 +3,14 @@
     windows_subsystem = "windows"
 )]
 
-use base64::{
-    engine::{self, general_purpose},
-    Engine as _,
-};
-use image::ImageFormat;
-use std::collections::HashMap;
-use std::io::{BufWriter, Cursor};
-use tauri::http::ResponseBuilder;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-use url::Url;
+use tauri::window::Window;
+use tauri::Manager;
+use tauri::{CustomMenuItem, Menu, MenuItem, PhysicalSize, Submenu};
 
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn greet(name: &str) -> String {
-    name.to_string()
-}
+mod cmd;
+mod error;
 
-#[tauri::command(async)]
-fn get_image(name: &str) -> String {
-    let image = image::open(format!(
-        "C:/Users/Ethan/Desktop/repo/translation/target/debug/{}",
-        name
-    ))
-    .unwrap();
-
-    let mut w = Cursor::new(Vec::new());
-    image.write_to(&mut w, ImageFormat::Jpeg).unwrap();
-
-    println!("TEST");
-
-    general_purpose::STANDARD_NO_PAD.encode(w.into_inner().as_slice())
-}
-
+use cmd::{filter_tree, get_image, greet};
 fn main() {
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
     let close = CustomMenuItem::new("close".to_string(), "Close");
@@ -47,8 +22,14 @@ fn main() {
         .add_submenu(submenu);
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet, get_image])
+        .setup(|app| {
+            let main_window: Window = app.get_window("main").unwrap();
+            main_window.set_min_size(Some(PhysicalSize::new(800, 600)));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![greet, get_image, filter_tree])
         .menu(menu)
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

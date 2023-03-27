@@ -19,7 +19,7 @@ import {
     Container,
     Stack
 } from "@chakra-ui/react";
-
+import Filetree from "./Filetree";
 
 function Canvas() {
     const [name, setName] = useState("");
@@ -37,7 +37,7 @@ function Canvas() {
                                 "nav main"
                                 "nav text"`}
                 gridTemplateRows={'0.1fr 0.94fr 0.6fr 0.50fr'}
-                gridTemplateColumns={'0.15fr 0.85fr'}
+                gridTemplateColumns={'250px 1fr'}
                 h='100vh'
                 w='100vw'
                 gap='1'
@@ -45,8 +45,8 @@ function Canvas() {
                 fontWeight='bold'
                 overflow="hidden"
             >
-                <GridItem pl='2' bg='orange.300' area={'nav'}>
-                    NAV
+                <GridItem bg='orange.300' area={'nav'}>
+                    <Filetree />
                 </GridItem>
                 <GridItem pl='2' bg='green.300' area={'toolbar'}>
                     <form
@@ -66,12 +66,12 @@ function Canvas() {
                 <GridItem p="4" bg='blue.300' area={'main'}>
                     <Center w="100%" h="100%">
                         <Flex p="4" w="90%" h="100%">
-                            <Box w="49.5%" h="100%" bg='red.500'>
-                                <Image boxSize="100%" src={`data:image/jpeg;base64,${image}`} />
+                            <Box w="49.5%" h="100%" bg='blue.300'>
+                                <Image h="100%" w="100%" objectFit="contain" boxSize="100%" src={`data:image/jpeg;base64,${image}`} />
                             </Box>
                             <Spacer />
-                            <Box w="49.5%" h="100%" bg='red.500'>
-                                <Image boxSize="100%" src={`data:image/jpeg;base64,${image}`} />
+                            <Box w="49.5%" h="100%" bg='blue.300'>
+                                <Image h="100%" w="100%" objectFit="contain" boxSize="100%" src={`data:image/jpeg;base64,${image}`} />
                             </Box>
                         </Flex>
                     </Center>

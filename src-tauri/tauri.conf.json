@@ -17,15 +17,18 @@
         "all": false,
         "open": true
       },
-      "path": {
-        "all": true
+      "dialog": {
+        "open": true,
+        "save": true
       },
-      "protocol": {
-        "all": false,
-        "asset": true,
-        "assetScope": [
-          "/**/*"
-        ]
+      "fs": {
+        "readDir": true,
+        "readFile": true,
+        "writeFile": true
+      },
+      "window": {
+        "setMinSize": true,
+        "setMaxSize": true
       }
     },
     "bundle": {
