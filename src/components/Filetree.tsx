@@ -3,27 +3,24 @@ import {
     Box,
     Button,
     Flex,
-    IconButton,
     Stack,
     Text,
-    Container,
-    Spacer,
-    HStack,
-    Icon
+    Icon,
+    IconButton,
 } from '@chakra-ui/react';
 import { open } from '@tauri-apps/api/dialog';
 import { invoke } from '@tauri-apps/api/tauri';
-import { readDir, readBinaryFile, FileEntry } from '@tauri-apps/api/fs';
-import { NodeApi, NodeRendererProps, Tree, TreeApi } from 'react-arborist';
-import { FillFlexParent } from './fill-flex-parent';
-import useResizeObserver from 'use-resize-observer';
+import { readDir, FileEntry } from '@tauri-apps/api/fs';
+import { Tree, TreeApi } from 'react-arborist';
 import { IoImageOutline } from 'react-icons/io5';
+import { AiFillFileAdd, AiFillFolderAdd } from 'react-icons/ai';
 import { IoIosArrowForward, IoIosArrowDown } from 'react-icons/io';
-import { AiFillFolder } from 'react-icons/ai';
+import styles from '../styles/filetree.module.css';
+import clsx from 'clsx';
 
 type treeDimensions = { width: number; height: number };
 
-function Filetree() {
+function Filetree({ onSelection, resetImageCache }) {
     const [tree, setTree] = useState<TreeApi<FileEntry> | null | undefined>(null);
     const [treeDimens, setTreeDimens] = useState<treeDimensions>({ width: 0, height: 0 });
     const [directories, setDirectories] = useState<FileEntry[]>([]);
@@ -47,6 +44,8 @@ function Filetree() {
         invoke("filter_tree", { fileTree: file_tree, images: true })
             .then((result) => setDirectories(JSON.parse<FileEntry[]>(result)))
             .catch((error) => console.error(error));
+
+        resetImageCache();
     }
 
     async function selectImageFile() {
@@ -71,6 +70,8 @@ function Filetree() {
         invoke("filter_tree", { fileTree: file_tree, images: false })
             .then((result) => setDirectories(JSON.parse<FileEntry[]>(result)))
             .catch((error) => console.error(error));
+
+        resetImageCache();
     }
 
     async function selectTextFile() {
@@ -84,6 +85,12 @@ function Filetree() {
     }
 
     useEffect(() => {
+        if (active != null) {
+            console.log(active.path);
+        }
+    }, [active])
+
+    useEffect(() => {
         const { width, height } = ref.current.getBoundingClientRect();
         setTreeDimens({ width, height });
     }, [])
@@ -95,25 +102,41 @@ function Filetree() {
     return (
         <Flex w="100%" h="100%" direction="column" overflow="hidden">
             <Stack h="100%">
-                <Box pl="2" w="100%" h="100%" bgColor="blue.300">
-                    <Text fontSize='xl'>Images</Text>
-                </Box>
-                <Button onClick={selectImageFile}>GETFILE</Button>
-                <Button onClick={selectImageDirectory}>GETDIR</Button>
+                <IconButton
+                    colorScheme="#ff6700"
+                    aria-label="Add File"
+                    icon={<AiFillFileAdd />}
+                    onClick={() => selectImageFile()}
+                />
+                <IconButton
+                    color="#ff6700"
+                    backgroundColor="#323232"
+                    aria-label="Add Folder"
+                    outline={0}
+                    icon={<AiFillFolderAdd />}
+                    onClick={() => selectImageDirectory()}
+                />
                 <Text>DIRS</Text>
-                <Flex width="100%" direction="column" ref={ref}>
+                <Flex sx={{
+                    "scrollbar-width": "thin",
+                    "::-webkit-scrollbar": {
+                        display: "none"
+                    }
+                }} overflowY="scroll" width="100%" height="100%" direction="column" ref={ref}>
                     <Tree
+                        className={styles.tree}
                         data={directories}
                         width={treeDimens.width}
+                        height={treeDimens.height}
                         idAccessor="path"
                         childrenAccessor={(node) => node.children}
-                        disableMultiSelection={false}
+                        disableMultiSelection={true}
                         searchTerm={searchTerm}
                         ref={(t) => setTree(t)}
                         openByDefault={false}
                         selection={active?.path}
                         onSelect={(selected) => setSelectedCount(selected.length)}
-                        onActivate={(node) => setActive(node.data)}
+                        onActivate={(node) => onSelection(node.data)}
                         onFocus={(node) => setFocused(node.data)}
                         onToggle={() => {
                             setTimeout(() => {
@@ -133,12 +156,18 @@ function Node({ node, style, dragHandle }) {
 
     return (
         <Flex
+            className={clsx(styles.node, node.state)}
             alignItems="center"
             style={style}
             ref={dragHandle}
             onClick={() => {
-                node.isInternal && node.toggle();
-                setIsOpen(node.isOpen);
+                if (node.isInternal && !node.isOpen) {
+                    node.toggle();
+                    setIsOpen(true);
+                } else {
+                    node.toggle();
+                    setIsOpen(false);
+                }
             }}
         >
             {node.isLeaf ? (
@@ -154,50 +183,5 @@ function Node({ node, style, dragHandle }) {
         </Flex>
     );
 }
-/*
-function Node({ node, style, tree, dragHandle }: NodeRendererProps<FileEntry>) {
-    const [isOpen, setIsOpen] = useState(false);
 
-    const handleClick = () => {
-        if (!node.isLeaf) {
-            setIsOpen(!isOpen);
-        }
-    };
-
-    const paddingLeft = `${node.depth * 20}px}`;
-
-    return (
-        <Flex style={style} alignItems="center">
-            <Flex alignItems="center" ml={paddingLeft}>
-                {node.isLeaf ? (
-                    <Icon as={IoImageOutline} mr={2} />
-                ) : (
-                    <Icon
-                        as={isOpen ? IoIosArrowDown : IoIosArrowForward}
-                        mr={2}
-                        onClick={handleClick}
-                        cursor="pointer"
-                    />
-
-                )}
-                <Text fontSize="sm">{node.data.name}</Text>
-            </Flex>
-            {!node.isLeaf && isOpen && (
-                <Box ml={2}>
-                    {node.children.map((childNode) => (
-                        <Node
-                            key={childNode.id}
-                            node={childNode}
-                            style={style}
-                            tree={tree}
-                            dragHandle={dragHandle}
-                        />
-                    ))}
-                </Box>
-            )}
-
-        </Flex >
-    );
-}
-*/
 export default Filetree;

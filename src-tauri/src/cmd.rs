@@ -18,12 +18,8 @@ pub fn greet(name: &str) -> String {
 }
 
 #[tauri::command(async)]
-pub fn get_image(name: &str) -> String {
-    let image = image::open(format!(
-        "C:/Users/Ethan/Desktop/repo/translation/target/debug/{}",
-        name
-    ))
-    .unwrap();
+pub fn get_image(image_path: &str) -> String {
+    let image = image::open(image_path).unwrap();
 
     let mut w = Cursor::new(Vec::new());
     image.write_to(&mut w, ImageFormat::Jpeg).unwrap();
@@ -40,7 +36,7 @@ pub fn filter_tree(file_tree: &str, images: bool) -> Result<String, MangatraErro
 
     for file in file_tree {
         if let Some(children) = file.children {
-            let filtered_children = filter_tree(&serde_json::to_string(&children)?)?;
+            let filtered_children = filter_tree(&serde_json::to_string(&children)?, images)?;
 
             let filtered_children = serde_json::from_str::<Vec<FileEntry>>(&filtered_children)?;
 

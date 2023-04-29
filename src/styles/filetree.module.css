@@ -1,3 +1,33 @@
-.node {
-    height: 100%
+.node:global(.isInternal) {
+    cursor: pointer;
+}
+
+.node:global(.isLeaf) {
+    cursor: pointer;
+}
+
+.node:global(.willRecieveDrop) {
+    background: #bbb;
+}
+
+.node:global(.isSelected) {
+    background: rgba(255, 103, 0, 0.5);
+    color: white;
+    border-radius: 0;
+}
+
+.node:global(.isSelectedStart) {
+    border-radius: 4px 4px 0 0;
+}
+
+.node:global(.isSelectedEnd) {
+    border-radius: 0 0 4px 4px;
+}
+
+.node:global(.isSelectedStart.isSelectedEnd) {
+    border-radius: 8px;
+}
+
+.tree::-webkit-scrollbar {
+    display: none;
 }
