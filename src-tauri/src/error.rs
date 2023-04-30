@@ -2,6 +2,8 @@
 pub enum MangatraError {
     #[error(transparent)]
     Serialization(#[from] serde_json::Error),
+    #[error("{0} is an invalid path, cannot get file name")]
+    InvalidPath(String),
 }
 
 impl serde::Serialize for MangatraError {

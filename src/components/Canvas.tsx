@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import {
     Box,
@@ -17,61 +17,56 @@ import { SyncLoader } from "react-spinners";
 import logo from "../assets/mangatra_logo.png";
 import Image from "next/image";
 
+
+type textStruct = {
+    textName: string,
+    textPath: string,
+    textPairs: Map<string, string>,
+}
+
+type imageStruct = {
+    imageData: string,
+    imagePath: string,
+    text: textStruct,
+    modified: boolean,
+}
+
+export const CanvasContext = createContext(null);
+
 function Canvas() {
     const [blur, setBlur] = useState('0');
     const [loading, setLoading] = useState<boolean>(false);
-    const [imageCache, setImageCache] = useState<Map<string, string>>(new Map());
+    const [imageTree, setImageTree] = useState<FileEntry[]>([]);
+    const [imageCache, setImageCache] = useState<Map<string, imageStruct>>(new Map());
     const [image, setImage] = useState("");
     const [selectedFileEntry, setSelectedFileEntry] = useState<FileEntry | null>(null);
+    const [fileMode, setFileMode] = useState<string>("Images");
 
     async function get_image(path) {
-        if (imageCache.has(path)) {
+        const fileName: string = await invoke("get_file_name", { path: path });
+
+        if (imageCache.get(fileName).imageData !== null) {
             setLoading(false);
             setBlur('0');
-            setImage(imageCache.get(path));
+            setImage(imageCache.get(fileName).imageData);
         } else {
             const img = await readBinaryFile(path);
             setLoading(false);
             setBlur('0');
-            var data: string = Buffer.from(img).toString('base64');
+
+            const data: string = Buffer.from(img).toString('base64');
+
             setImage(data);
-            setImageCache(new Map(imageCache.set(path, data)));
-        }
-    }
-
-    function get_image_element() {
-        if (image == "") {
-            return (
-                <Image
-                    src={logo}
-                    alt="Mangatra Logo"
-                />
-            )
-        } else {
-            return (
-                <Flex sx={{ filter: "blur(".concat(blur, "px", ")") }} p="4" w="90%" h="100%">
-                    <Box w="49.5%" h="100%" bg='#6a6a6a'>
-
-                        <ChakraImage
-                            h="100%"
-                            w="100%"
-                            objectFit="contain"
-                            boxSize="100%"
-                            src={`data:image/jpeg;base64,${image}`}
-                        />
-                    </Box>
-                    <Spacer />
-                    <Box w="49.5%" h="100%" bg='#6a6a6a'>
-                        <ChakraImage
-                            h="100%"
-                            w="100%"
-                            objectFit="contain"
-                            boxSize="100%"
-                            src={`data:image/jpeg;base64,${image}`}
-                        />
-                    </Box>
-                </Flex>
-            )
+            setImageCache(new Map(imageCache.set(fileName, {
+                imageData: data,
+                imagePath: path,
+                text: {
+                    textName: imageCache.get(fileName).text.textName,
+                    textPath: imageCache.get(fileName).text.textPath,
+                    textPairs: imageCache.get(fileName).text.textPairs,
+                },
+                modified: true,
+            })));
         }
     }
 
@@ -101,10 +96,19 @@ function Canvas() {
                 overflow="hidden"
             >
                 <GridItem bg='#323232' area={'nav'}>
-                    <Filetree
-                        onSelection={(entry) => setSelectedFileEntry(entry)}
-                        resetImageCache={() => setImageCache(new Map())}
-                    />
+                    <CanvasContext.Provider value={{
+                        imageCache,
+                        setImageCache,
+                        imageTree,
+                        setImageTree,
+                        fileMode,
+                        setFileMode
+                    }}>
+                        <Filetree
+                            onSelection={(entry) => setSelectedFileEntry(entry)}
+                            resetImageCache={() => setImageCache(new Map())}
+                        />
+                    </CanvasContext.Provider>
                 </GridItem>
                 <GridItem pl='2' bg='#323232' area={'toolbar'}>
                 </GridItem>

@@ -10,7 +10,7 @@ use tauri::{CustomMenuItem, Menu, MenuItem, PhysicalSize, Submenu};
 mod cmd;
 mod error;
 
-use cmd::{filter_tree, get_image, greet};
+use cmd::{filter_tree, get_file_name, get_image};
 fn main() {
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
     let close = CustomMenuItem::new("close".to_string(), "Close");
@@ -27,7 +27,11 @@ fn main() {
             main_window.set_min_size(Some(PhysicalSize::new(800, 600)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, get_image, filter_tree])
+        .invoke_handler(tauri::generate_handler![
+            get_file_name,
+            get_image,
+            filter_tree
+        ])
         .menu(menu)
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .run(tauri::generate_context!())

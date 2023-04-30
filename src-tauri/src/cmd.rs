@@ -12,11 +12,6 @@ struct FileEntry {
     path: String,
 }
 
-#[tauri::command]
-pub fn greet(name: &str) -> String {
-    name.to_string()
-}
-
 #[tauri::command(async)]
 pub fn get_image(image_path: &str) -> String {
     let image = image::open(image_path).unwrap();
@@ -27,6 +22,15 @@ pub fn get_image(image_path: &str) -> String {
     println!("TEST");
 
     general_purpose::STANDARD_NO_PAD.encode(w.into_inner().as_slice())
+}
+
+#[tauri::command]
+pub fn get_file_name(path: &str) -> Result<String, MangatraError> {
+    Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+        .ok_or(MangatraError::InvalidPath(path.to_string()))
 }
 
 #[tauri::command]
@@ -43,7 +47,7 @@ pub fn filter_tree(file_tree: &str, images: bool) -> Result<String, MangatraErro
             if !filtered_children.is_empty() {
                 filtered_tree.push(FileEntry {
                     children: Some(filtered_children),
-                    name: file.name,
+                    name: get_file_name(&file.path).ok(),
                     path: file.path,
                 });
             }
