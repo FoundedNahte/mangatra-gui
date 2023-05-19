@@ -14,7 +14,7 @@ import {
 } from '@chakra-ui/react';
 import { open } from '@tauri-apps/api/dialog';
 import { invoke } from '@tauri-apps/api/tauri';
-import { readDir, FileEntry } from '@tauri-apps/api/fs';
+import { readDir, readTextFile, FileEntry } from '@tauri-apps/api/fs';
 import { Tree, TreeApi } from 'react-arborist';
 import { IoImageOutline } from 'react-icons/io5';
 import { AiFillFileAdd, AiFillFolderAdd, AiOutlineFileText } from 'react-icons/ai';
@@ -22,7 +22,7 @@ import { IoIosArrowForward, IoIosArrowDown } from 'react-icons/io';
 import { RxText, RxTextNone, RxDotFilled } from 'react-icons/rx';
 import styles from '../styles/filetree.module.css';
 import clsx from 'clsx';
-import { CanvasContext } from './Canvas';
+import { CanvasContext, textPair } from './Canvas';
 
 type treeDimensions = { width: number; height: number };
 
@@ -32,7 +32,6 @@ function Filetree({ onSelection, resetImageCache }) {
     const [tree, setTree] = useState<TreeApi<FileEntry> | null | undefined>(null);
     const [treeDimens, setTreeDimens] = useState<treeDimensions>({ width: 0, height: 0 });
     const [active, setActive] = useState<FileEntry | null>(null);
-    const [focused, setFocused] = useState<FileEntry | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCount, setSelectedCount] = useState(0);
     const [count, setCount] = useState(0);
@@ -45,7 +44,9 @@ function Filetree({ onSelection, resetImageCache }) {
         imageTree,
         setImageTree,
         fileMode,
-        setFileMode
+        setFileMode,
+        focused,
+        setFocused
     } = useContext(CanvasContext);
 
     const ref = useRef(null);
@@ -78,13 +79,17 @@ function Filetree({ onSelection, resetImageCache }) {
                     });
 
                 if (fileName !== null && imageCache.has(fileName)) {
+                    let fileContents = await readTextFile(textFileEntry.path);
+
+                    let textPairs: textPair[] = JSON.parse(fileContents);
+
                     setImageCache(new Map(imageCache.set(fileName, {
                         imageData: imageCache.get(fileName).imageData,
                         imagePath: imageCache.get(fileName).imagePath,
                         text: {
                             textName: fileName,
                             textPath: textFileEntry.path,
-                            textPairs: new Map(),
+                            textPairs: textPairs.slice(0, -1),
                         },
                         modified: imageCache.get(fileName).modified
                     })));
@@ -128,7 +133,7 @@ function Filetree({ onSelection, resetImageCache }) {
                         text: {
                             textName: null,
                             textPath: null,
-                            textPairs: new Map(),
+                            textPairs: null,
                         },
                         modified: false
                     })));
@@ -149,20 +154,22 @@ function Filetree({ onSelection, resetImageCache }) {
             recursive: true
         }) as string;
 
-        let entries = await readDir(dir, { recursive: true });
-        let file_tree = JSON.stringify(entries);
+        if (dir !== null) {
+            let entries = await readDir(dir, { recursive: true });
+            let file_tree = JSON.stringify(entries);
 
-        invoke("filter_tree", { fileTree: file_tree, images: true })
-            .then(async (result) => {
-                setLoadingFiles(true);
-                let localImageTree: FileEntry[] = await addImagesToCache(JSON.parse<FileEntry[]>(result));
-                setImageTree(localImageTree);
-                setLoadingFiles(false);
-            })
-            .catch((error) => console.error(error));
+            invoke("filter_tree", { fileTree: file_tree, images: true })
+                .then(async (result) => {
+                    setLoadingFiles(true);
+                    let localImageTree: FileEntry[] = await addImagesToCache(JSON.parse<FileEntry[]>(result));
+                    setImageTree(localImageTree);
+                    setLoadingFiles(false);
+                })
+                .catch((error) => console.error(error));
 
-        console.log("Walked image directory");
-        console.log(imageTree);
+            console.log("Walked image directory");
+            console.log(imageTree);
+        }
     }
 
     // Selects one or multiple image files and either replaces an existing image file
@@ -177,43 +184,45 @@ function Filetree({ onSelection, resetImageCache }) {
         }) as string[];
 
         setLoadingFiles(true);
-        for (let imagePath of imagePaths) {
-            // Get the file name or error and continue on
-            // TODO: Add error dialog
-            let fileName: string = await invoke("get_file_name", { path: imagePath })
-                .then((result: string) => result)
-                .catch((error) => {
-                    console.error(error);
-                    return null;
-                });
+        if (imagePaths !== null) {
+            for (let imagePath of imagePaths) {
+                // Get the file name or error and continue on
+                // TODO: Add error dialog
+                let fileName: string = await invoke("get_file_name", { path: imagePath })
+                    .then((result: string) => result)
+                    .catch((error) => {
+                        console.error(error);
+                        return null;
+                    });
 
-            if (fileName !== null) {
-                let imageFileEntry = {
-                    children: [],
-                    name: fileName,
-                    path: imagePath,
-                }
+                if (fileName !== null) {
+                    let imageFileEntry = {
+                        children: [],
+                        name: fileName,
+                        path: imagePath,
+                    }
 
-                // Replace the image file in the tree/wipe the cache if it already exists
-                // Else add it to the image tree
-                if (imageCache.has(fileName)) {
-                    replaceElement(imageTree, imageFileEntry);
+                    // Replace the image file in the tree/wipe the cache if it already exists
+                    // Else add it to the image tree
+                    if (imageCache.has(fileName)) {
+                        replaceElement(imageTree, imageFileEntry);
 
-                    setImageCache(new Map(imageCache.delete(fileName)));
-                    setImageTree(imageTree);
-                } else {
-                    setImageCache(new Map(imageCache.set(fileName, {
-                        imageData: null,
-                        imagePath: imagePath,
-                        text: {
-                            textName: null,
-                            textPath: null,
-                            textPairs: new Map(),
-                        },
-                        modified: false
-                    })));
+                        setImageCache(new Map(imageCache.delete(fileName)));
+                        setImageTree(imageTree);
+                    } else {
+                        setImageCache(new Map(imageCache.set(fileName, {
+                            imageData: null,
+                            imagePath: imagePath,
+                            text: {
+                                textName: null,
+                                textPath: null,
+                                textPairs: null,
+                            },
+                            modified: false
+                        })));
 
-                    setImageTree(imageTree.push(imageFileEntry));
+                        setImageTree(imageTree.push(imageFileEntry));
+                    }
                 }
             }
         }
@@ -228,19 +237,21 @@ function Filetree({ onSelection, resetImageCache }) {
             recursive: true
         }) as string;
 
-        let entries = await readDir(dir, { recursive: true });
-        let file_tree = JSON.stringify(entries);
+        if (dir !== null) {
+            let entries = await readDir(dir, { recursive: true });
+            let file_tree = JSON.stringify(entries);
 
-        invoke("filter_tree", { fileTree: file_tree, images: false })
-            .then(async (result: string) => {
-                const newTextTree: FileEntry[] = JSON.parse<FileEntry[]>(result);
-                setLoadingFiles(true);
-                await addText(newTextTree);
-                setLoadingFiles(false);
-            })
-            .catch((error) => console.error(error));
+            invoke("filter_tree", { fileTree: file_tree, images: false })
+                .then(async (result: string) => {
+                    const newTextTree: FileEntry[] = JSON.parse<FileEntry[]>(result);
+                    setLoadingFiles(true);
+                    await addText(newTextTree);
+                    setLoadingFiles(false);
+                })
+                .catch((error) => console.error(error));
 
-        console.log(imageCache);
+            console.log(imageCache);
+        }
     }
 
     // Selects one or multiple text files and replaces any existing text files associated
@@ -255,33 +266,42 @@ function Filetree({ onSelection, resetImageCache }) {
         }) as string[];
 
         setLoadingFiles(true);
-        for (let textPath of textPaths) {
-            let fileName: string = await invoke("get_file_name", { path: textPath })
-                .then((result: string) => result)
-                .catch((error) => {
-                    console.error(error);
-                    return null;
-                });
+        if (textPaths !== null) {
+            for (let textPath of textPaths) {
+                let fileName: string = await invoke("get_file_name", { path: textPath })
+                    .then((result: string) => result)
+                    .catch((error) => {
+                        console.error(error);
+                        return null;
+                    });
 
-            if (fileName !== null) {
-                let textFileEntry = {
-                    children: [],
-                    name: fileName,
-                    path: textPath,
-                }
+                if (fileName !== null) {
+                    let textFileEntry = {
+                        children: [],
+                        name: fileName,
+                        path: textPath,
+                    }
 
-                // If there is a associated image, replace or add the text file
-                if (imageCache.has(fileName)) {
-                    setImageCache(new Map(imageCache.set(fileName, {
-                        imageData: imageCache.get(fileName).imageData,
-                        imagePath: imageCache.get(fileName).imagePath,
-                        text: {
-                            textName: fileName,
-                            textPath: textFileEntry.path,
-                            textPairs: new Map(),
-                        },
-                        modified: imageCache.get(fileName).modified
-                    })));
+                    // If there is a associated image, replace or add the text file
+                    if (imageCache.has(fileName)) {
+                        let fileContents = await readTextFile(textPath);
+                        let textPairs: textPair[] = [];
+
+                        JSON.parse(fileContents, (originalText, translatedText) => {
+                            textPairs.push([originalText, translatedText]);
+                        });
+
+                        setImageCache(new Map(imageCache.set(fileName, {
+                            imageData: imageCache.get(fileName).imageData,
+                            imagePath: imageCache.get(fileName).imagePath,
+                            text: {
+                                textName: fileName,
+                                textPath: textFileEntry.path,
+                                textPairs: textPairs.slice(0, -1),
+                            },
+                            modified: imageCache.get(fileName).modified
+                        })));
+                    }
                 }
             }
         }
@@ -309,6 +329,13 @@ function Filetree({ onSelection, resetImageCache }) {
         setCount(tree?.visibleNodes.length ?? 0);
     }, [tree, searchTerm])
 
+    useEffect(() => {
+        console.log(focused);
+        if (focused !== null) {
+            console.log(imageCache.get(focused.name));
+        }
+    }, [focused])
+
     return (
         <Flex w="100%" h="100%" direction="column" overflow="hidden">
             <Stack h="100%">
@@ -327,7 +354,14 @@ function Filetree({ onSelection, resetImageCache }) {
                     </Tooltip>
                     <Spacer />
                     <ButtonGroup>
-                        <Tooltip hasArrow color="white" bg="#6a6a6a" label={fileMode == "Images" ? "Add Image File" : "Add Text File"} placement="bottom">
+                        <Tooltip
+                            hasArrow
+                            color="white"
+                            bg="#6a6a6a"
+                            label={fileMode == "Images" ? "Add Image File" : "Add Text File"}
+                            closeDelay={1000}
+                            placement="bottom"
+                        >
                             <IconButton
                                 color="#ff6700"
                                 backgroundColor="#323232"
@@ -344,7 +378,14 @@ function Filetree({ onSelection, resetImageCache }) {
                                 }}
                             />
                         </Tooltip>
-                        <Tooltip hasArrow color="white" bg="#6a6a6a" label={fileMode == "Images" ? "Add Image Directory" : "Add Text Directory"} placement="bottom">
+                        <Tooltip
+                            hasArrow
+                            color="white"
+                            bg="#6a6a6a"
+                            label={fileMode == "Images" ? "Add Image Directory" : "Add Text Directory"}
+                            closeDelay={1000}
+                            placement="bottom"
+                        >
                             <IconButton
                                 color="#ff6700"
                                 backgroundColor="#323232"
